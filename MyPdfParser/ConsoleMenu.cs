@@ -4,10 +4,21 @@ using System.IO;
 namespace MyPdfParser
 {
     /// <summary>
-    /// Represents an interactive console menu for PDF word frequency analysis.
+    /// Represents an interactive console menu for PDF word frequency analysis,
+    /// including word counting and exporting frequency data to JSON.
     /// </summary>
     internal class ConsoleMenu
     {
+        /// <summary>
+        /// Instance of the word parser, maintaining state between operations.
+        /// </summary>
+        private DocWordParser parser = new DocWordParser();
+
+        /// <summary>
+        /// Indicates whether word frequency data is available for export.
+        /// </summary>
+        private bool frequencyDataReady = false;
+
         /// <summary>
         /// Starts the interactive console menu loop.
         /// </summary>
@@ -33,9 +44,11 @@ namespace MyPdfParser
                     case "1":
                         HandleWordCount();
                         break;
-
+                    case "2":
+                        HandleExportToJson();
+                        break;
                     default:
-                        Console.WriteLine("Unknown option. Please enter 1 or 0.");
+                        Console.WriteLine("Unknown option. Please enter 1, 2 or 0.");
                         break;
                 }
             }
@@ -47,13 +60,15 @@ namespace MyPdfParser
         private void DisplayMenu()
         {
             Console.WriteLine("\n=== PDF Analyzer ===");
-            Console.WriteLine("1 - Count words in PDF");
+            Console.WriteLine("1 - Count and show word frequencies");
+            Console.WriteLine("2 - Export word frequencies to JSON");
             Console.WriteLine("0 - Exit");
             Console.Write("Select an option: ");
         }
 
         /// <summary>
-        /// Prompts user for a PDF file path and runs word frequency analysis.
+        /// Handles the user's choice to count words in a PDF.
+        /// Prompts for the PDF file path, performs analysis, and updates state.
         /// </summary>
         private void HandleWordCount()
         {
@@ -74,14 +89,51 @@ namespace MyPdfParser
 
             try
             {
-                var parser = new DocWordParser();
                 parser.ShowWordsByCount(filePath);
+                frequencyDataReady = parser.WordFrequency.Count > 0;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"An error occurred while processing the file: {ex.Message}");
+                frequencyDataReady = false;
+            }
+        }
+
+        /// <summary>
+        /// Handles the user's choice to export the word frequency data to a JSON file.
+        /// Prompts for the output file path and calls the export method.
+        /// </summary>
+        private void HandleExportToJson()
+        {
+            if (!frequencyDataReady)
+            {
+                Console.WriteLine("Word frequency data not available. Please run word count first (1).");
+                return;
+            }
+
+            Console.Write("Enter full path to save JSON file (or 0 to cancel): ");
+            string? outputPath = Console.ReadLine();
+
+            if (outputPath == "0")
+            {
+                Console.WriteLine("Export canceled.");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(outputPath))
+            {
+                Console.WriteLine("Invalid file path. Please try again.");
+                return;
+            }
+
+            try
+            {
+                parser.ExportCountInJson(outputPath);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred during JSON export: {ex.Message}");
             }
         }
     }
 }
-

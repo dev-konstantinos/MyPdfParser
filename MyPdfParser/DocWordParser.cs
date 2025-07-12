@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
@@ -97,14 +98,48 @@ namespace MyPdfParser
                     WordFrequency[cleanedWord] = 1;
             }
 
-            var sorted = WordFrequency.OrderByDescending(kvp => kvp.Value);
+            WordFrequency = WordFrequency
+                .OrderByDescending(kvp => kvp.Value)
+                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
-            foreach (var kvp in sorted)
+            foreach (var kvp in WordFrequency)
             {
                 Console.WriteLine($"{kvp.Key} — {kvp.Value}");
             }
 
             Console.WriteLine("\nProcessing completed.");
+        }
+        
+        /// <summary>
+        /// Exports the current word frequency dictionary to a JSON file.
+        /// Assumes that the dictionary has already been sorted externally (e.g., in ShowWordsByCount).
+        /// </summary>
+        /// <param name="outputPath">The full file path where the JSON output should be saved.</param>
+        public void ExportCountInJson(string outputPath)
+        {
+            if (WordFrequency == null || WordFrequency.Count == 0)
+            {
+                Console.WriteLine("No word frequency data to export.");
+                return;
+            }
+
+            try
+            {
+                var options = new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                };
+
+                string json = JsonSerializer.Serialize(WordFrequency, options);
+
+                File.WriteAllText(outputPath, json);
+
+                Console.WriteLine($"JSON file with word frequencies created: {outputPath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during JSON export: {ex.Message}");
+            }
         }
     }
 }
