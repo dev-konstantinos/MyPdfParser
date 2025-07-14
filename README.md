@@ -8,10 +8,12 @@ A simple console application to parse and analyze PDF files using the [UglyToad.
 - ✅ Extracts words, cleans punctuation, and normalizes text  
 - ✅ Counts the frequency of each word (case-insensitive)  
 - ✅ Displays a sorted frequency list in the console  
-- ✅ Exports word frequency data to a JSON file  
+- ✅ Exports **all word frequencies** to a JSON file  
+- ✅ Analyzes **only selected words** specified by the user  
+- ✅ Exports **selected word frequencies** to JSON  
 - ✅ Interactive console menu with options to analyze, export, or exit  
 
-## 📄 Example Output
+## 📄 Example Console Output
 
 ```
 Word frequency:
@@ -23,13 +25,35 @@ dolor — 35
 Processing completed.
 ```
 
-### 📦 Sample JSON Export
+### 🎯 Selected Words Output
+
+```
+Selected words frequency:
+data — 21
+test — 10
+model — 7
+...
+
+Processing completed.
+```
+
+### 📦 JSON Export Example
 
 ```json
 {
   "lorem": 42,
   "ipsum": 39,
   "dolor": 35
+}
+```
+
+### 📦 Selected JSON Export Example
+
+```json
+{
+  "data": 21,
+  "test": 10,
+  "model": 7
 }
 ```
 
@@ -44,14 +68,18 @@ Processing completed.
 dotnet run
 ```
 
-1. Choose `1` to analyze a PDF and view word frequency in the console.
-2. Choose `2` to export the frequency data to a JSON file (saved in the same folder).
-3. Choose `0` to exit.
+### Menu Options
+
+1. Analyze a PDF and view word frequency in the console  
+2. Export all word frequencies to a JSON file  
+3. Analyze only selected words (comma-separated input)  
+4. Export selected word frequencies to a JSON file  
+0. Exit the application  
 
 ## 📌 Current Status
 
 This is a working prototype focused on word frequency analysis.  
-The architecture is designed to be extensible for future features.
+The codebase is modular and extensible for future features.
 
 ## 🛠️ Planned Improvements
 
@@ -59,8 +87,8 @@ The architecture is designed to be extensible for future features.
 - Stop-word filtering and phrase detection  
 - Improved error handling and logging  
 - GUI or web interface  
+- Unit tests for core logic  
 
 ---
 
-> Developed as a practical C# project to demonstrate PDF parsing and console app design.
-
+> Developed as a practical C# project to demonstrate PDF parsing, user interaction, and modular architecture.
