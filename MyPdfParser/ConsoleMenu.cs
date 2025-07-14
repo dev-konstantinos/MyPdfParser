@@ -1,36 +1,30 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
+using System.Text;
 
 namespace MyPdfParser
 {
     /// <summary>
-    /// Represents an interactive console menu for PDF word frequency analysis,
-    /// including word counting and exporting frequency data to JSON.
+    /// Interactive console menu for PDF word frequency analysis and JSON export.
     /// </summary>
     internal class ConsoleMenu
     {
-        /// <summary>
-        /// Instance of the word parser, maintaining state between operations.
-        /// </summary>
         private DocWordParser parser = new DocWordParser();
 
-        /// <summary>
-        /// Indicates whether word frequency data is available for export.
-        /// </summary>
-        private bool frequencyDataReady = false;
+        private bool analysisPerformed = false;
+
+        private enum ReportType { None, Full, Selected, NoStops }
+
+        private ReportType lastReport = ReportType.None;
 
         /// <summary>
-        /// Indicates whether selected word frequency data is available for export.
-        /// </summary>
-        private bool selectedDataReady = false;
-
-        /// <summary>
-        /// Starts the interactive console menu loop.
+        /// Starts the interactive menu loop.
         /// </summary>
         public void Run()
         {
-            Console.InputEncoding = System.Text.Encoding.UTF8;
-            Console.OutputEncoding = System.Text.Encoding.UTF8;
+            Console.InputEncoding = Encoding.UTF8;
+            Console.OutputEncoding = Encoding.UTF8;
 
             while (true)
             {
@@ -38,54 +32,50 @@ namespace MyPdfParser
 
                 string? input = Console.ReadLine();
 
-                if (input == "0")
-                {
-                    Console.WriteLine("Exiting application...");
-                    break;
-                }
-
                 switch (input)
                 {
                     case "1":
-                        HandleWordCount();
+                        HandleFullAnalysis();
                         break;
                     case "2":
-                        HandleExportToJson();
+                        HandleSelectedWordsAnalysis();
                         break;
                     case "3":
-                        HandleSelectedWordsCount();
+                        HandleFullAnalysisNoStops();
                         break;
                     case "4":
-                        HandleExportSelectedToJson();
+                        HandleExportToJson();
                         break;
+                    case "0":
+                        Console.WriteLine("Exiting application...");
+                        return;
                     default:
-                        Console.WriteLine("Unknown option. Please enter 1, 2 or 0.");
+                        Console.WriteLine("Unknown option. Please enter 1, 2, 3 or 4.");
                         break;
                 }
             }
         }
 
         /// <summary>
-        /// Displays the main console menu options.
+        /// Displays the available menu options.
         /// </summary>
         private void DisplayMenu()
         {
-            Console.WriteLine("\n=== PDF Analyzer ===");
-            Console.WriteLine("1 - Count and show word frequencies");
-            Console.WriteLine("2 - Export word frequencies to JSON");
-            Console.WriteLine("3 - Analyze and show selected word frequencies");
-            Console.WriteLine("4 - Export selected word frequencies to JSON");
-            Console.WriteLine("0 - Exit");
+            Console.WriteLine("\n=== PDF Analyzer Menu ===");
+            Console.WriteLine("1 - Analyze all words in a PDF file");
+            Console.WriteLine("2 - Analyze selected words in a PDF");
+            Console.WriteLine("3 - Analyze all words (without stop words)");
+            Console.WriteLine("4 - Export the result to JSON");
+            Console.WriteLine("0 - Exit the application");
             Console.Write("Select an option: ");
         }
 
         /// <summary>
-        /// Handles the user's choice to count words in a PDF.
-        /// Prompts for the PDF file path, performs analysis, and updates state.
+        /// Handles full word frequency analysis.
         /// </summary>
-        private void HandleWordCount()
+        private void HandleFullAnalysis()
         {
-            Console.Write("Enter full path to PDF file (or 0 to cancel): ");
+            Console.Write("Enter full path to the PDF file (or 0 to cancel): ");
             string? filePath = Console.ReadLine();
 
             if (filePath == "0")
@@ -96,29 +86,30 @@ namespace MyPdfParser
 
             if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
             {
-                Console.WriteLine("Invalid file path. Please try again.");
+                Console.WriteLine("Invalid file path.");
                 return;
             }
 
             try
             {
                 parser.ShowWordsByCount(filePath);
-                frequencyDataReady = parser.WordFrequency.Count > 0;
+                analysisPerformed = parser.WordFrequency.Count > 0;
+                lastReport = analysisPerformed ? ReportType.Full : ReportType.None;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"An error occurred while processing the file: {ex.Message}");
-                frequencyDataReady = false;
+                Console.WriteLine($"Error during analysis: {ex.Message}");
+                analysisPerformed = false;
+                lastReport = ReportType.None;
             }
         }
 
         /// <summary>
-        /// Handles the analysis of only target words from a PDF file.
-        /// Prompts for the PDF file path and a comma-separated list of target words.
+        /// Handles analysis of selected words.
         /// </summary>
-        private void HandleSelectedWordsCount()
+        private void HandleSelectedWordsAnalysis()
         {
-            Console.Write("Enter full path to PDF file (or 0 to cancel): ");
+            Console.Write("Enter full path to the PDF file (or 0 to cancel): ");
             string? filePath = Console.ReadLine();
 
             if (filePath == "0")
@@ -129,21 +120,21 @@ namespace MyPdfParser
 
             if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
             {
-                Console.WriteLine("Invalid file path. Please try again.");
+                Console.WriteLine("Invalid file path.");
                 return;
             }
 
-            Console.Write("Enter comma-separated list of target words (e.g. data, analysis, test): ");
+            Console.Write("Enter comma-separated list of target words: ");
             string? inputWords = Console.ReadLine();
 
             if (string.IsNullOrWhiteSpace(inputWords))
             {
-                Console.WriteLine("No words provided. Operation aborted.");
+                Console.WriteLine("No words provided.");
                 return;
             }
 
             var selectedWords = inputWords
-                .Split(", ", StringSplitOptions.RemoveEmptyEntries)
+                .Split(",", StringSplitOptions.RemoveEmptyEntries)
                 .Select(w => w.Trim())
                 .Where(w => !string.IsNullOrWhiteSpace(w))
                 .ToList();
@@ -157,24 +148,59 @@ namespace MyPdfParser
             try
             {
                 parser.ShowSelectedWordFrequencies(filePath, selectedWords);
-                selectedDataReady = parser.SelectedWordFrequency.Count > 0;
+                analysisPerformed = parser.SelectedWordFrequency.Count > 0;
+                lastReport = analysisPerformed ? ReportType.Selected : ReportType.None;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"An error occurred while processing the file: {ex.Message}");
-                selectedDataReady = false;
+                Console.WriteLine($"Error during analysis: {ex.Message}");
+                analysisPerformed = false;
+                lastReport = ReportType.None;
             }
         }
 
         /// <summary>
-        /// Handles the user's choice to export the word frequency data to a JSON file.
-        /// Prompts for the output file path and calls the export method.
+        /// Handles word frequency analysis excluding stop words.
+        /// </summary>
+        private void HandleFullAnalysisNoStops()
+        {
+            Console.Write("Enter full path to the PDF file (or 0 to cancel): ");
+            string? filePath = Console.ReadLine();
+
+            if (filePath == "0")
+            {
+                Console.WriteLine("Operation canceled.");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+            {
+                Console.WriteLine("Invalid file path.");
+                return;
+            }
+
+            try
+            {
+                parser.ShowWordsByCountNoStopWords(filePath);
+                analysisPerformed = parser.WithNoStopWordFrequency.Count > 0;
+                lastReport = analysisPerformed ? ReportType.NoStops : ReportType.None;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during analysis: {ex.Message}");
+                analysisPerformed = false;
+                lastReport = ReportType.None;
+            }
+        }
+
+        /// <summary>
+        /// Handles export of the most recent analysis result to a JSON file.
         /// </summary>
         private void HandleExportToJson()
         {
-            if (!frequencyDataReady)
+            if (!analysisPerformed || lastReport == ReportType.None)
             {
-                Console.WriteLine("Word frequency data not available. Please run word count first (1).");
+                Console.WriteLine("No analysis data available. Run analysis first (1 or 2).");
                 return;
             }
 
@@ -189,55 +215,33 @@ namespace MyPdfParser
 
             if (string.IsNullOrWhiteSpace(outputPath))
             {
-                Console.WriteLine("Invalid file path. Please try again.");
+                Console.WriteLine("Invalid file path.");
                 return;
             }
 
             try
             {
-                parser.ExportCountInJson(outputPath);
+                Dictionary<string, int>? dataToExport = lastReport switch
+                {
+                    ReportType.Full => parser.WordFrequency,
+                    ReportType.Selected => parser.SelectedWordFrequency,
+                    ReportType.NoStops => parser.WithNoStopWordFrequency,
+                    _ => null,
+                };
+
+                if (dataToExport == null || dataToExport.Count == 0)
+                {
+                    Console.WriteLine("No data available to export.");
+                    return;
+                }
+
+                parser.ExportCountInJson(outputPath, dataToExport);
+                Console.WriteLine("Export completed successfully.");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"An error occurred during JSON export: {ex.Message}");
+                Console.WriteLine($"Error during export: {ex.Message}");
             }
         }
-
-        /// <summary>
-        /// Handles the export of selected word frequency data to a JSON file.
-        /// </summary>
-        private void HandleExportSelectedToJson()
-        {
-            if (!selectedDataReady)
-            {
-                Console.WriteLine("Selected word frequency data not available. Please analyze selected words first (3).");
-                return;
-            }
-
-            Console.Write("Enter full path to save JSON file (or 0 to cancel): ");
-            string? outputPath = Console.ReadLine();
-
-            if (outputPath == "0")
-            {
-                Console.WriteLine("Export canceled.");
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(outputPath))
-            {
-                Console.WriteLine("Invalid file path. Please try again.");
-                return;
-            }
-
-            try
-            {
-                parser.ExportSelectedInJson(outputPath);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"An error occurred during JSON export: {ex.Message}");
-            }
-        }
-
     }
 }

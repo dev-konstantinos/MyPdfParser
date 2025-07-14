@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -9,40 +10,55 @@ using UglyToad.PdfPig.Content;
 namespace MyPdfParser
 {
     /// <summary>
-    /// Parses words from a PDF file and calculates their frequency.
+    /// Parses a PDF document and analyzes word frequency, with options for filtering.
     /// </summary>
     internal class DocWordParser
     {
-        /// <summary>
-        /// List of all raw words extracted from the PDF.
-        /// </summary>
         public List<string> Words { get; private set; } = new List<string>();
 
-        /// <summary>
-        /// Dictionary containing word frequency counts (case-insensitive).
-        /// </summary>
         public Dictionary<string, int> WordFrequency { get; private set; } = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-
         public Dictionary<string, int> SelectedWordFrequency { get; private set; } = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, int> WithNoStopWordFrequency { get; private set; } = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
-        /// Extracts words from the given PDF file and fills the Words list.
+        /// Multilingual stop-word list (English, Russian, German).
         /// </summary>
-        /// <param name="filePath">Full path to the PDF file.</param>
+        private readonly HashSet<string> stopWords = new(StringComparer.OrdinalIgnoreCase)
+        {
+            // English
+            "the", "and", "or", "in", "on", "at", "of", "to", "a", "an", "is", "are", "was", "were", "by", "for", "with",
+            "as", "from", "that", "this", "it", "be", "but", "not", "have", "has", "had", "i", "you", "he", "she", "we",
+            "they", "them", "his", "her", "its", "their", "which",
+
+            // Russian
+            "и", "в", "во", "не", "что", "он", "на", "я", "с", "со", "как", "а", "то", "все", "она", "так", "его",
+            "но", "да", "ты", "к", "у", "же", "вы", "за", "бы", "по", "только", "ее", "мне", "было", "вот", "от", "меня",
+            "еще", "нет", "о", "из", "ему", "теперь", "когда", "даже", "ну", "вдруг", "ли", "если", "уже", "или", "ни",
+            "быть", "был", "него", "до", "вас", "нибудь", "опять", "уж", "вам", "ведь", "там", "потом", "себя", "ничего",
+            "ей", "может", "они", "тут", "где", "есть", "надо", "ней", "для", "мы", "тебя", "их", "чем", "была", "сам",
+            "чтоб", "без", "будто", "чего", "раз", "тоже", "себе", "под", "будет", "ж", "тогда", "кто", "этот",
+
+            // German
+            "der", "die", "das", "und", "in", "den", "von", "zu", "mit", "auf", "für", "ist", "im", "dem", "nicht", "ein",
+            "eine", "als", "auch", "an", "es", "am", "aus", "er", "sie", "nach", "bei", "über", "wir", "was", "so",
+            "ich", "du", "haben", "hat", "dass", "sein", "noch", "wie", "man", "nur", "wenn", "kann", "doch", "schon",
+            "ja", "oder", "aber", "mehr", "vor", "zur", "bis", "unter", "weil", "wird"
+        };
+
+        /// <summary>
+        /// Extracts raw words from a PDF file.
+        /// </summary>
         private void ParsePdfWords(string filePath)
         {
             try
             {
-                using (PdfDocument document = PdfDocument.Open(filePath))
-                {
-                    foreach (Page page in document.GetPages())
-                    {
-                        var wordsOnPage = page.GetWords();
+                using var document = PdfDocument.Open(filePath);
 
-                        foreach (var word in wordsOnPage)
-                        {
-                            Words.Add(word.Text);
-                        }
+                foreach (Page page in document.GetPages())
+                {
+                    foreach (var word in page.GetWords())
+                    {
+                        Words.Add(word.Text);
                     }
                 }
             }
@@ -54,9 +70,8 @@ namespace MyPdfParser
         }
 
         /// <summary>
-        /// Works with the specified PDF file to build a word frequency dictionary.
+        /// Builds a case-insensitive word frequency dictionary from the PDF content.
         /// </summary>
-        /// <param name="filePath">Path to PDF</param>
         private void BuildWordFrequency(string filePath)
         {
             Words.Clear();
@@ -102,10 +117,8 @@ namespace MyPdfParser
         }
 
         /// <summary>
-        /// Processes the specified PDF file and prints the frequency of all words to the console,
-        /// sorted in descending order by count.
+        /// Shows the frequency of all words in descending order.
         /// </summary>
-        /// <param name="filePath">The full path to the PDF file to analyze.</param>
         public void ShowWordsByCount(string filePath)
         {
             try
@@ -128,12 +141,8 @@ namespace MyPdfParser
         }
 
         /// <summary>
-        /// Processes the specified PDF file and returns a dictionary with frequency counts
-        /// for only the selected words provided by the user.
+        /// Shows frequency for user-selected words only.
         /// </summary>
-        /// <param name="filePath">The full path to the PDF file to analyze.</param>
-        /// <param name="selectedWords">A list of target words to extract frequencies for.</param>
-        /// <returns>A dictionary containing only the selected words and their frequency counts.</returns>
         public void ShowSelectedWordFrequencies(string filePath, List<string> selectedWords)
         {
             try
@@ -165,13 +174,39 @@ namespace MyPdfParser
         }
 
         /// <summary>
-        /// Exports the current word frequency dictionary to a JSON file.
-        /// Assumes that the dictionary has already been sorted externally (e.g., in ShowWordsByCount).
+        /// Shows word frequencies excluding stop words.
         /// </summary>
-        /// <param name="outputPath">The full file path where the JSON output should be saved.</param>
-        public void ExportCountInJson(string outputPath)
+        public void ShowWordsByCountNoStopWords(string filePath)
         {
-            if (WordFrequency == null || WordFrequency.Count == 0)
+            try
+            {
+                BuildWordFrequency(filePath);
+            }
+            catch
+            {
+                return;
+            }
+
+            WithNoStopWordFrequency = WordFrequency
+                .Where(kvp => !stopWords.Contains(kvp.Key))
+                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+            Console.WriteLine("\nWord frequency (excluding stop words):");
+
+            foreach (var kvp in WithNoStopWordFrequency.OrderByDescending(k => k.Value))
+            {
+                Console.WriteLine($"{kvp.Key} — {kvp.Value}");
+            }
+
+            Console.WriteLine("\nProcessing completed.");
+        }
+
+        /// <summary>
+        /// Exports any frequency dictionary to a JSON file.
+        /// </summary>
+        public void ExportCountInJson(string outputPath, Dictionary<string, int> dict)
+        {
+            if (dict == null || dict.Count == 0)
             {
                 Console.WriteLine("No word frequency data to export.");
                 return;
@@ -184,8 +219,7 @@ namespace MyPdfParser
                     WriteIndented = true
                 };
 
-                string json = JsonSerializer.Serialize(WordFrequency, options);
-
+                string json = JsonSerializer.Serialize(dict, options);
                 File.WriteAllText(outputPath, json);
 
                 Console.WriteLine($"JSON file with word frequencies created: {outputPath}");
@@ -195,37 +229,5 @@ namespace MyPdfParser
                 Console.WriteLine($"Error during JSON export: {ex.Message}");
             }
         }
-
-        /// <summary>
-        /// Exports the selected word frequency dictionary to a JSON file.
-        /// </summary>
-        /// <param name="outputPath">The full file path where the JSON output should be saved.</param>
-        public void ExportSelectedInJson(string outputPath)
-        {
-            if (SelectedWordFrequency == null || SelectedWordFrequency.Count == 0)
-            {
-                Console.WriteLine("No selected word frequency data to export.");
-                return;
-            }
-
-            try
-            {
-                var options = new JsonSerializerOptions
-                {
-                    WriteIndented = true
-                };
-
-                string json = JsonSerializer.Serialize(SelectedWordFrequency, options);
-
-                File.WriteAllText(outputPath, json);
-
-                Console.WriteLine($"JSON file with selected word frequencies created: {outputPath}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error during JSON export: {ex.Message}");
-            }
-        }
-
     }
 }
