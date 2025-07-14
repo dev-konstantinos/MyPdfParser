@@ -62,10 +62,10 @@ namespace MyPdfParser
         private void DisplayMenu()
         {
             Console.WriteLine("\n=== PDF Analyzer Menu ===");
-            Console.WriteLine("1 - Analyze all words in a PDF file");
-            Console.WriteLine("2 - Analyze selected words in a PDF");
-            Console.WriteLine("3 - Analyze all words (without stop words)");
-            Console.WriteLine("4 - Export the result to JSON");
+            Console.WriteLine("1 - Analyze and show all word frequencies in a PDF file");
+            Console.WriteLine("2 - Analyze and show only selected words in a PDF file");
+            Console.WriteLine("3 - Analyze word frequencies without predefined stop words");
+            Console.WriteLine("4 - Export the latest result to JSON");
             Console.WriteLine("0 - Exit the application");
             Console.Write("Select an option: ");
         }
