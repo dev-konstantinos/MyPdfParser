@@ -1,6 +1,6 @@
 # PDF File Analyzer
 
-A simple console application to parse and analyze PDF files using the [UglyToad.PdfPig](https://github.com/UglyToad/PdfPig) library.
+A simple console / WPF application to parse and analyze PDF files using the [UglyToad.PdfPig](https://github.com/UglyToad/PdfPig) library.
 
 ## ✨ Features
 
@@ -62,8 +62,7 @@ The codebase is modular and easily extensible for future features.
 ## 🛠️ Planned Improvements
 
 - Export to CSV or Excel formats  
-- Improved error handling and logging  
-- WPF GUI or web interface
+- Improved error handling and logging
 
 ---
 
